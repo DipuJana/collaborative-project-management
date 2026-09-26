@@ -1,0 +1,183 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum ProjectMemberRole {
+  OWNER
+  ADMIN
+  MEMBER
+}
+
+enum InvitationStatus {
+  PENDING
+  ACCEPTED
+  REJECTED
+}
+
+enum JoinRequestStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum TaskStatus {
+  TODO
+  IN_PROGRESS
+  DONE
+}
+
+enum TaskPriority {
+  LOW
+  MEDIUM
+  HIGH
+}
+
+model User {
+  id                  BigInt                @id @default(autoincrement())
+  name                String                @db.VarChar(100)
+  email               String                @unique @db.VarChar(255)
+  passwordHash        String                @map("password_hash") @db.VarChar(255)
+
+  createdAt           DateTime              @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt           DateTime              @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  ownedProjects       Project[]
+  memberships         ProjectMember[]
+
+  receivedInvitations ProjectInvitation[]   @relation("InvitedUser")
+  sentInvitations     ProjectInvitation[]   @relation("Inviter")
+
+  joinRequests        ProjectJoinRequest[]  @relation("JoinRequester")
+  respondedRequests   ProjectJoinRequest[]  @relation("JoinResponder")
+
+  assignedTasks Task[] @relation("TaskAssignee")
+  createdTasks  Task[] @relation("TaskCreator")
+
+  notifications Notification[]
+
+  @@map("users")
+}
+
+model Project {
+  id          BigInt          @id @default(autoincrement())
+  name        String          @db.VarChar(150)
+  code        String          @unique @db.VarChar(50)
+  description String?
+
+  ownerId     BigInt          @map("owner_id")
+
+  createdAt   DateTime        @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt   DateTime        @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  owner       User            @relation(fields: [ownerId], references: [id])
+  members     ProjectMember[]
+  invitations  ProjectInvitation[]
+  joinRequests ProjectJoinRequest[]
+
+  tasks Task[]
+
+  notifications Notification[]
+
+  @@map("projects")
+}
+
+model ProjectMember {
+  projectId BigInt            @map("project_id")
+  userId    BigInt            @map("user_id")
+  role      ProjectMemberRole
+  joinedAt  DateTime          @default(now()) @map("joined_at") @db.Timestamptz(6)
+
+  project   Project           @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  user      User              @relation(fields: [userId], references: [id], onDelete: Restrict)
+
+  @@id([projectId, userId])
+  @@index([userId, projectId])
+  @@map("project_members")
+}
+
+model ProjectInvitation {
+  id            BigInt           @id @default(autoincrement())
+  projectId     BigInt           @map("project_id")
+  invitedUserId BigInt           @map("invited_user_id")
+  invitedBy     BigInt           @map("invited_by")
+  status        InvitationStatus @default(PENDING)
+
+  createdAt     DateTime         @default(now()) @map("created_at") @db.Timestamptz(6)
+  respondedAt   DateTime?        @map("responded_at") @db.Timestamptz(6)
+
+  project       Project          @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  invitedUser   User             @relation("InvitedUser", fields: [invitedUserId], references: [id], onDelete: Restrict)
+  inviter       User             @relation("Inviter", fields: [invitedBy], references: [id], onDelete: Restrict)
+
+  @@index([invitedUserId, status])
+  @@map("project_invitations")
+}
+
+model ProjectJoinRequest {
+  id          BigInt            @id @default(autoincrement())
+  projectId   BigInt            @map("project_id")
+  userId      BigInt            @map("user_id")
+  status      JoinRequestStatus @default(PENDING)
+
+  createdAt   DateTime          @default(now()) @map("created_at") @db.Timestamptz(6)
+  respondedAt DateTime?         @map("responded_at") @db.Timestamptz(6)
+  respondedBy BigInt?           @map("responded_by")
+
+  project     Project           @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  user        User              @relation("JoinRequester", fields: [userId], references: [id], onDelete: Restrict)
+  responder   User?             @relation("JoinResponder", fields: [respondedBy], references: [id], onDelete: Restrict)
+
+  @@index([projectId, userId])
+  @@map("project_join_requests")
+}
+
+model Task {
+  id          BigInt       @id @default(autoincrement())
+  projectId   BigInt       @map("project_id")
+  title       String       @db.VarChar(200)
+  description String?
+  status      TaskStatus   @default(TODO)
+  priority    TaskPriority @default(MEDIUM)
+
+  assignedTo  BigInt?      @map("assigned_to")
+  createdBy   BigInt       @map("created_by")
+  dueDate     DateTime?    @map("due_date") @db.Date
+
+  createdAt   DateTime     @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt   DateTime     @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  project     Project      @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  assignee    User?        @relation("TaskAssignee", fields: [assignedTo], references: [id], onDelete: SetNull)
+  creator     User         @relation("TaskCreator", fields: [createdBy], references: [id], onDelete: Restrict)
+
+  @@index([projectId])
+  @@index([projectId, status])
+  @@index([projectId, priority])
+  @@index([projectId, assignedTo])
+  @@index([projectId, createdAt])
+  @@map("tasks")
+}
+
+model Notification {
+  id               BigInt    @id @default(autoincrement())
+  userId           BigInt    @map("user_id")
+  type             String    @db.VarChar(50)
+  message          String
+  relatedProjectId BigInt?   @map("related_project_id")
+  relatedEntityId  BigInt?   @map("related_entity_id")
+  isRead           Boolean   @default(false) @map("is_read")
+
+  createdAt        DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  user             User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  relatedProject   Project?  @relation(fields: [relatedProjectId], references: [id], onDelete: Cascade)
+
+  @@index([userId, isRead, createdAt])
+  @@map("notifications")
+}
+
