@@ -1,5 +1,5 @@
 import express from "express";
-import pool from "./config/database.js";
+import prisma from "./config/prisma.js";
 
 const app = express();
 
@@ -7,18 +7,18 @@ const PORT = Number(process.env.PORT) || 5000;
 
 app.get("/health", async (_req, res) => {
   try {
-    const result = await pool.query("SELECT NOW()");
+    const result = await prisma.$queryRaw<{ now: Date }[]>`SELECT NOW()`;
 
     res.json({
       status: "ok",
-      database: result.rows[0]
+      database: result[0]?.now,
     });
   } catch (error) {
     console.error(error);
 
     res.status(500).json({
       status: "error",
-      database: "unavailable"
+      database: "unavailable",
     });
   }
 });
