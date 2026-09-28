@@ -1,5 +1,6 @@
 import bcrypt from "bcrypt";
 import prisma from "../config/prisma.js";
+import { AppError } from "../errors/app.error.js";
 
 export async function registerUser(
   name: string,
@@ -11,9 +12,10 @@ export async function registerUser(
   });
 
   if (existingUser) {
-    throw new Error("Email already registered");
+    throw new AppError("Email already registered", 409);
   }
 
+  // ...
   const passwordHash = await bcrypt.hash(password, 12);
 
   const user = await prisma.user.create({
@@ -34,5 +36,5 @@ export async function registerUser(
   ...user,
   id: user.id.toString(),
   };
-  
+
 }
