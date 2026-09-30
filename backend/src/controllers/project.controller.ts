@@ -2,7 +2,9 @@ import type { NextFunction, Request, Response } from "express";
 import {
   createProject as createProjectService,
   getUserProjects,
+  getProjectById as getProjectByIdService,
 } from "../services/project.service.js";
+import { AppError } from "../errors/app.error.js";
 
 export async function createProject(
   req: Request,
@@ -37,6 +39,36 @@ export async function getProjects(
 
     res.status(200).json({
       projects,
+    });
+  } catch (error) {
+    next(error);
+  }
+}
+
+export async function getProjectById(
+  req: Request,
+  res: Response,
+  next: NextFunction,
+) {
+  try {
+    const rawProjectId = req.params.projectId;
+
+    if (
+      typeof rawProjectId !== "string" ||
+      !/^\d+$/.test(rawProjectId)
+    ) {
+      throw new AppError("Invalid project ID", 400);
+    }
+
+    const projectId = BigInt(rawProjectId);
+
+    const project = await getProjectByIdService(
+      projectId,
+      req.user!.id,
+    );
+
+    res.status(200).json({
+      project,
     });
   } catch (error) {
     next(error);

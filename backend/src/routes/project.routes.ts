@@ -1,7 +1,15 @@
 import { Router } from "express";
-import { createProject,getProjects } from "../controllers/project.controller.js";
+
+import {
+  createProject,
+  getProjects,
+  getProjectById,
+} from "../controllers/project.controller.js";
+
 import { authenticate } from "../middleware/auth.middleware.js";
+
 import { validate } from "../middleware/validate.middleware.js";
+
 import { createProjectSchema } from "../validators/project.validator.js";
 
 const router = Router();
@@ -17,6 +25,12 @@ router.get(
   "/",
   authenticate,
   getProjects,
+);
+
+router.get(
+  "/:projectId",
+  authenticate,
+  getProjectById,
 );
 
 export default router;
