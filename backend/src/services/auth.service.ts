@@ -1,6 +1,7 @@
 import bcrypt from "bcrypt";
 import prisma from "../config/prisma.js";
 import { AppError } from "../errors/app.error.js";
+import { generateToken } from "../config/jwt.js";
 
 export async function registerUser(
   name: string,
@@ -37,4 +38,37 @@ export async function registerUser(
   id: user.id.toString(),
   };
 
+}
+
+export async function loginUser(
+  email: string,
+  password: string,
+) {
+  const user = await prisma.user.findUnique({
+    where: { email },
+  });
+
+  if (!user) {
+    throw new AppError("Invalid email or password", 401);
+  }
+
+  const passwordMatches = await bcrypt.compare(
+    password,
+    user.passwordHash,
+  );
+
+  if (!passwordMatches) {
+    throw new AppError("Invalid email or password", 401);
+  }
+
+  const token = generateToken(user.id);
+
+  return {
+    token,
+    user: {
+      id: user.id.toString(),
+      name: user.name,
+      email: user.email,
+    },
+  };
 }
