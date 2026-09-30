@@ -33,3 +33,30 @@ export async function createProject(
     };
   });
 }
+
+export async function getUserProjects(userId: bigint) {
+  const memberships = await prisma.projectMember.findMany({
+    where: {
+      userId,
+    },
+    include: {
+      project: true,
+    },
+    orderBy: {
+      project: {
+        createdAt: "desc",
+      },
+    },
+  });
+
+  return memberships.map((membership) => ({
+    id: membership.project.id.toString(),
+    name: membership.project.name,
+    code: membership.project.code,
+    description: membership.project.description,
+    ownerId: membership.project.ownerId.toString(),
+    role: membership.role,
+    createdAt: membership.project.createdAt,
+    updatedAt: membership.project.updatedAt,
+  }));
+}

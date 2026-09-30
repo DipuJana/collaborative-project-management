@@ -1,5 +1,8 @@
 import type { NextFunction, Request, Response } from "express";
-import { createProject as createProjectService } from "../services/project.service.js";
+import {
+  createProject as createProjectService,
+  getUserProjects,
+} from "../services/project.service.js";
 
 export async function createProject(
   req: Request,
@@ -18,6 +21,22 @@ export async function createProject(
     res.status(201).json({
       message: "Project created successfully",
       project,
+    });
+  } catch (error) {
+    next(error);
+  }
+}
+
+export async function getProjects(
+  req: Request,
+  res: Response,
+  next: NextFunction,
+) {
+  try {
+    const projects = await getUserProjects(req.user!.id);
+
+    res.status(200).json({
+      projects,
     });
   } catch (error) {
     next(error);
