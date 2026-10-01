@@ -14,6 +14,8 @@ import { validate } from "../middleware/validate.middleware.js";
 
 import { createProjectSchema, updateProjectSchema } from "../validators/project.validator.js";
 
+import { getProjectMembersController } from "../controllers/projectMember.controller.js";
+
 const router = Router();
 
 router.post(
@@ -46,6 +48,12 @@ router.delete(
   "/:projectId",
   authenticate,
   deleteProject
+);
+
+router.get(
+  "/:projectId/members",
+  authenticate,
+  getProjectMembersController
 );
 
 export default router;
