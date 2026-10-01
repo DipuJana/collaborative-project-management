@@ -16,6 +16,8 @@ import { createProjectSchema, updateProjectSchema } from "../validators/project.
 
 import { getProjectMembersController } from "../controllers/projectMember.controller.js";
 
+import { createInvitationController } from "../controllers/invitation.controller.js";
+
 const router = Router();
 
 router.post(
@@ -54,6 +56,12 @@ router.get(
   "/:projectId/members",
   authenticate,
   getProjectMembersController
+);
+
+router.post(
+  "/:projectId/invitations",
+  authenticate,
+  createInvitationController
 );
 
 export default router;
