@@ -94,3 +94,90 @@ export async function getProjectById(
     updatedAt: membership.project.updatedAt,
   };
 }
+
+export async function updateProject(
+  projectId: bigint,
+  userId: bigint,
+  data: {
+    name?: string;
+    description?: string | null;
+  }
+) {
+  const membership = await prisma.projectMember.findUnique({
+    where: {
+      projectId_userId: {
+        projectId,
+        userId,
+      },
+    },
+  });
+
+  if (!membership) {
+    throw new AppError("Project not found", 404);
+  }
+
+  if (
+    membership.role !== "OWNER" &&
+    membership.role !== "ADMIN"
+  ) {
+    throw new AppError(
+      "You do not have permission to update this project",
+      403
+    );
+  }
+
+  const project = await prisma.project.update({
+    where: {
+      id: projectId,
+    },
+    data: {
+      ...(data.name !== undefined && {
+        name: data.name,
+      }),
+      ...(data.description !== undefined && {
+        description: data.description,
+      }),
+    },
+  });
+
+  return {
+    id: project.id.toString(),
+    name: project.name,
+    code: project.code,
+    description: project.description,
+    ownerId: project.ownerId.toString(),
+    createdAt: project.createdAt,
+    updatedAt: project.updatedAt,
+  };
+}
+
+export async function deleteProject(
+  projectId: bigint,
+  userId: bigint
+) {
+  const membership = await prisma.projectMember.findUnique({
+    where: {
+      projectId_userId: {
+        projectId,
+        userId,
+      },
+    },
+  });
+
+  if (!membership) {
+    throw new AppError("Project not found", 404);
+  }
+
+  if (membership.role !== "OWNER") {
+    throw new AppError(
+      "Only the project owner can delete the project",
+      403
+    );
+  }
+
+  await prisma.project.delete({
+    where: {
+      id: projectId,
+    },
+  });
+}
