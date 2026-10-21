@@ -86,3 +86,45 @@ export async function createInvitation(
     createdAt: invitation.createdAt,
   };
 }
+
+export async function getMyInvitations(userId: bigint) {
+  const invitations = await prisma.projectInvitation.findMany({
+    where: {
+      invitedUserId: userId,
+      status: "PENDING",
+    },
+    include: {
+      project: {
+        select: {
+          id: true,
+          name: true,
+          code: true,
+        },
+      },
+      inviter: {
+        select: {
+          id: true,
+          name: true,
+          email: true,
+        },
+      },
+    },
+    orderBy: {
+      createdAt: "desc",
+    },
+  });
+
+  return invitations.map((invitation) => ({
+    id: invitation.id.toString(),
+    projectId: invitation.project.id.toString(),
+    projectName: invitation.project.name,
+    projectCode: invitation.project.code,
+    invitedBy: {
+      id: invitation.inviter.id.toString(),
+      name: invitation.inviter.name,
+      email: invitation.inviter.email,
+    },
+    status: invitation.status,
+    createdAt: invitation.createdAt,
+  }));
+}

@@ -1,6 +1,6 @@
 import type { NextFunction, Request, Response } from "express";
 import { AppError } from "../errors/app.error.js";
-import { createInvitation } from "../services/invitation.service.js";
+import { createInvitation, getMyInvitations } from "../services/invitation.service.js";
 
 export async function createInvitationController(
   req: Request,
@@ -31,6 +31,22 @@ export async function createInvitationController(
 
     res.status(201).json({
       invitation,
+    });
+  } catch (error) {
+    next(error);
+  }
+}
+
+export async function getMyInvitationsController(
+  req: Request,
+  res: Response,
+  next: NextFunction
+) {
+  try {
+    const invitations = await getMyInvitations(req.user!.id);
+
+    res.status(200).json({
+      invitations,
     });
   } catch (error) {
     next(error);
