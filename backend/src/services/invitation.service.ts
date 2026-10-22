@@ -128,3 +128,110 @@ export async function getMyInvitations(userId: bigint) {
     createdAt: invitation.createdAt,
   }));
 }
+
+
+export async function acceptInvitation(
+  invitationId: bigint,
+  userId: bigint
+) {
+  return prisma.$transaction(async (tx) => {
+    const invitation = await tx.projectInvitation.findUnique({
+      where: { id: invitationId },
+    });
+
+    // Hide invitations that do not exist or belong to another user.
+    if (!invitation || invitation.invitedUserId !== userId) {
+      throw new AppError("Invitation not found", 404);
+    }
+
+    if (invitation.status !== "PENDING") {
+      throw new AppError("Invitation has already been processed", 409);
+    }
+
+    const existingMembership = await tx.projectMember.findUnique({
+      where: {
+        projectId_userId: {
+          projectId: invitation.projectId,
+          userId,
+        },
+      },
+    });
+
+    if (existingMembership) {
+      throw new AppError("You are already a project member", 409);
+    }
+
+    // Atomically claim the pending invitation.
+    const updated = await tx.projectInvitation.updateMany({
+      where: {
+        id: invitationId,
+        invitedUserId: userId,
+        status: "PENDING",
+      },
+      data: {
+        status: "ACCEPTED",
+        respondedAt: new Date(),
+      },
+    });
+
+    if (updated.count === 0) {
+      throw new AppError("Invitation has already been processed", 409);
+    }
+
+    // Create membership in the same transaction.
+    await tx.projectMember.create({
+      data: {
+        projectId: invitation.projectId,
+        userId,
+        role: "MEMBER",
+      },
+    });
+
+    return {
+      invitationId: invitation.id.toString(),
+      projectId: invitation.projectId.toString(),
+      status: "ACCEPTED",
+    };
+  });
+}
+
+export async function rejectInvitation(
+  invitationId: bigint,
+  userId: bigint
+) {
+  return prisma.$transaction(async (tx) => {
+    const invitation = await tx.projectInvitation.findUnique({
+      where: { id: invitationId },
+    });
+
+    if (!invitation || invitation.invitedUserId !== userId) {
+      throw new AppError("Invitation not found", 404);
+    }
+
+    if (invitation.status !== "PENDING") {
+      throw new AppError("Invitation has already been processed", 409);
+    }
+
+    const updated = await tx.projectInvitation.updateMany({
+      where: {
+        id: invitationId,
+        invitedUserId: userId,
+        status: "PENDING",
+      },
+      data: {
+        status: "REJECTED",
+        respondedAt: new Date(),
+      },
+    });
+
+    if (updated.count === 0) {
+      throw new AppError("Invitation has already been processed", 409);
+    }
+
+    return {
+      invitationId: invitation.id.toString(),
+      projectId: invitation.projectId.toString(),
+      status: "REJECTED",
+    };
+  });
+}
