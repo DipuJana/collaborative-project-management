@@ -7,8 +7,14 @@ export async function createJoinRequest(
   projectCode: string
 ) {
   const project = await prisma.project.findUnique({
-    where: { code: projectCode },
-    select: { id: true, name: true, code: true },
+    where: {
+      code: projectCode,
+    },
+    select: {
+      id: true,
+      name: true,
+      code: true,
+    },
   });
 
   if (!project) {
@@ -40,11 +46,40 @@ export async function createJoinRequest(
     throw new AppError("A pending join request already exists", 409);
   }
 
-  const request = await prisma.projectJoinRequest.create({
-    data: {
-      projectId: project.id,
-      userId,
-    },
+  // Create the join request and notify project owners/admins atomically.
+  const request = await prisma.$transaction(async (tx) => {
+    const createdRequest = await tx.projectJoinRequest.create({
+      data: {
+        projectId: project.id,
+        userId,
+      },
+    });
+
+    const admins = await tx.projectMember.findMany({
+      where: {
+        projectId: project.id,
+        role: {
+          in: ["OWNER", "ADMIN"],
+        },
+      },
+      select: {
+        userId: true,
+      },
+    });
+
+    if (admins.length > 0) {
+      await tx.notification.createMany({
+        data: admins.map((admin) => ({
+          userId: admin.userId,
+          type: "JOIN_REQUEST_CREATED",
+          message: `A user has requested to join project ${project.name}.`,
+          relatedProjectId: project.id,
+          relatedEntityId: createdRequest.id,
+        })),
+      });
+    }
+
+    return createdRequest;
   });
 
   return {
@@ -175,11 +210,23 @@ export async function approveJoinRequest(
       throw new AppError("Join request has already been processed", 409);
     }
 
+    // Add the requester to the project.
     await tx.projectMember.create({
       data: {
         projectId,
         userId: request.userId,
         role: "MEMBER",
+      },
+    });
+
+    // Notify the requester.
+    await tx.notification.create({
+      data: {
+        userId: request.userId,
+        type: "JOIN_REQUEST_APPROVED",
+        message: "Your request to join the project was approved.",
+        relatedProjectId: projectId,
+        relatedEntityId: request.id,
       },
     });
 
@@ -249,6 +296,17 @@ export async function rejectJoinRequest(
     if (updated.count === 0) {
       throw new AppError("Join request has already been processed", 409);
     }
+
+    // Notify the requester.
+    await tx.notification.create({
+      data: {
+        userId: request.userId,
+        type: "JOIN_REQUEST_REJECTED",
+        message: "Your request to join the project was rejected.",
+        relatedProjectId: projectId,
+        relatedEntityId: request.id,
+      },
+    });
 
     return {
       id: request.id.toString(),

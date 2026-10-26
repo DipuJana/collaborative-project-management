@@ -1,3 +1,4 @@
+
 import prisma from "../config/prisma.js";
 import { AppError } from "../errors/app.error.js";
 
@@ -6,7 +7,7 @@ export async function createInvitation(
   inviterId: bigint,
   email: string
 ) {
-  // 1. Check inviter's membership and role
+  // 1. Check inviter's membership and role.
   const inviterMembership = await prisma.projectMember.findUnique({
     where: {
       projectId_userId: {
@@ -30,7 +31,7 @@ export async function createInvitation(
     );
   }
 
-  // 2. Find the user being invited
+  // 2. Find the user being invited.
   const invitedUser = await prisma.user.findUnique({
     where: {
       email,
@@ -41,7 +42,7 @@ export async function createInvitation(
     throw new AppError("User not found", 404);
   }
 
-  // 3. Prevent inviting an existing member
+  // 3. Prevent inviting an existing member.
   const existingMembership = await prisma.projectMember.findUnique({
     where: {
       projectId_userId: {
@@ -55,7 +56,7 @@ export async function createInvitation(
     throw new AppError("User is already a project member", 409);
   }
 
-  // 4. Prevent duplicate pending invitation
+  // 4. Prevent duplicate pending invitations.
   const existingInvitation = await prisma.projectInvitation.findFirst({
     where: {
       projectId,
@@ -68,23 +69,35 @@ export async function createInvitation(
     throw new AppError("A pending invitation already exists", 409);
   }
 
-  // 5. Create invitation
-  const invitation = await prisma.projectInvitation.create({
-    data: {
-      projectId,
-      invitedUserId: invitedUser.id,
-      invitedBy: inviterId,
-    },
-  });
+  // 5. Create invitation and notification atomically.
+  return prisma.$transaction(async (tx) => {
+    const invitation = await tx.projectInvitation.create({
+      data: {
+        projectId,
+        invitedUserId: invitedUser.id,
+        invitedBy: inviterId,
+      },
+    });
 
-  return {
-    id: invitation.id.toString(),
-    projectId: invitation.projectId.toString(),
-    invitedUserId: invitation.invitedUserId.toString(),
-    invitedBy: invitation.invitedBy.toString(),
-    status: invitation.status,
-    createdAt: invitation.createdAt,
-  };
+    await tx.notification.create({
+      data: {
+        userId: invitedUser.id,
+        type: "PROJECT_INVITATION",
+        message: "You have been invited to join a project.",
+        relatedProjectId: projectId,
+        relatedEntityId: invitation.id,
+      },
+    });
+
+    return {
+      id: invitation.id.toString(),
+      projectId: invitation.projectId.toString(),
+      invitedUserId: invitation.invitedUserId.toString(),
+      invitedBy: invitation.invitedBy.toString(),
+      status: invitation.status,
+      createdAt: invitation.createdAt,
+    };
+  });
 }
 
 export async function getMyInvitations(userId: bigint) {
@@ -129,14 +142,15 @@ export async function getMyInvitations(userId: bigint) {
   }));
 }
 
-
 export async function acceptInvitation(
   invitationId: bigint,
   userId: bigint
 ) {
   return prisma.$transaction(async (tx) => {
     const invitation = await tx.projectInvitation.findUnique({
-      where: { id: invitationId },
+      where: {
+        id: invitationId,
+      },
     });
 
     // Hide invitations that do not exist or belong to another user.
@@ -178,12 +192,23 @@ export async function acceptInvitation(
       throw new AppError("Invitation has already been processed", 409);
     }
 
-    // Create membership in the same transaction.
+    // Create project membership in the same transaction.
     await tx.projectMember.create({
       data: {
         projectId: invitation.projectId,
         userId,
         role: "MEMBER",
+      },
+    });
+
+    // Notify the user who sent the invitation.
+    await tx.notification.create({
+      data: {
+        userId: invitation.invitedBy,
+        type: "INVITATION_ACCEPTED",
+        message: "Your project invitation was accepted.",
+        relatedProjectId: invitation.projectId,
+        relatedEntityId: invitation.id,
       },
     });
 
@@ -201,7 +226,9 @@ export async function rejectInvitation(
 ) {
   return prisma.$transaction(async (tx) => {
     const invitation = await tx.projectInvitation.findUnique({
-      where: { id: invitationId },
+      where: {
+        id: invitationId,
+      },
     });
 
     if (!invitation || invitation.invitedUserId !== userId) {
@@ -227,6 +254,17 @@ export async function rejectInvitation(
     if (updated.count === 0) {
       throw new AppError("Invitation has already been processed", 409);
     }
+
+    // Notify the user who sent the invitation.
+    await tx.notification.create({
+      data: {
+        userId: invitation.invitedBy,
+        type: "INVITATION_REJECTED",
+        message: "Your project invitation was rejected.",
+        relatedProjectId: invitation.projectId,
+        relatedEntityId: invitation.id,
+      },
+    });
 
     return {
       invitationId: invitation.id.toString(),

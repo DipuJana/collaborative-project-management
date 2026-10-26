@@ -4,6 +4,7 @@ import projectRouter from "./project.routes.js";
 import invitationRouter from "./invitation.routes.js";
 import projectJoinRequestRouter from "./projectJoinRequest.routes.js";
 import taskRouter from "./task.routes.js";
+import notificationRouter from "./notification.routes.js";
 
 const router = Router();
 
@@ -19,5 +20,6 @@ router.use("/invitations", invitationRouter);
 router.use("/projects", projectJoinRequestRouter);
 router.use("/projects", projectRouter);
 router.use("/projects", taskRouter);
+router.use("/notifications", notificationRouter);
 
 export default router;
