@@ -2,6 +2,7 @@ import { createBrowserRouter } from 'react-router-dom'
 import LandingPage from '../pages/LandingPage'
 import LoginPage from '../pages/LoginPage'
 import RegisterPage from '../pages/RegisterPage'
+import DashboardPage from '../pages/DashboardPage'
 import PlaceholderPage from '../pages/PlaceholderPage'
 import { ProtectedRoute } from './ProtectedRoute'
 import { PublicOnlyRoute } from './PublicOnlyRoute'
@@ -38,7 +39,7 @@ export const router = createBrowserRouter([
         children: [
           {
             path: '/dashboard',
-            element: <PlaceholderPage title="Dashboard" />,
+            element: <DashboardPage />,
           },
           {
             path: '/notifications',

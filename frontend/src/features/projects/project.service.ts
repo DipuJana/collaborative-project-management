@@ -48,3 +48,12 @@ export async function deleteProject(projectId: string): Promise<void> {
     requiresAuth: true,
   })
 }
+
+export async function joinProjectByCode(projectCode: string): Promise<{ message: string }> {
+  return apiRequest<{ message: string }>('/projects/join-requests', {
+    method: 'POST',
+    body: { projectCode },
+    requiresAuth: true,
+  })
+}
+
