@@ -3,10 +3,12 @@ import LandingPage from '../pages/LandingPage'
 import LoginPage from '../pages/LoginPage'
 import RegisterPage from '../pages/RegisterPage'
 import DashboardPage from '../pages/DashboardPage'
+import ProjectOverviewPage from '../pages/ProjectOverviewPage'
 import PlaceholderPage from '../pages/PlaceholderPage'
 import { ProtectedRoute } from './ProtectedRoute'
 import { PublicOnlyRoute } from './PublicOnlyRoute'
 import AppLayout from '../layouts/AppLayout'
+import ProjectLayout from '../layouts/ProjectLayout'
 
 export const router = createBrowserRouter([
   // ── Public landing ────────────────────────────────────────────────────────
@@ -51,19 +53,25 @@ export const router = createBrowserRouter([
           },
           {
             path: '/projects/:projectId',
-            element: <PlaceholderPage title="Project workspace" />,
-          },
-          {
-            path: '/projects/:projectId/tasks',
-            element: <PlaceholderPage title="Project tasks" />,
-          },
-          {
-            path: '/projects/:projectId/members',
-            element: <PlaceholderPage title="Project members" />,
-          },
-          {
-            path: '/projects/:projectId/settings',
-            element: <PlaceholderPage title="Project settings" />,
+            element: <ProjectLayout />,
+            children: [
+              {
+                index: true,
+                element: <ProjectOverviewPage />,
+              },
+              {
+                path: 'tasks',
+                element: <PlaceholderPage title="Project tasks" />,
+              },
+              {
+                path: 'members',
+                element: <PlaceholderPage title="Project members" />,
+              },
+              {
+                path: 'settings',
+                element: <PlaceholderPage title="Project settings" />,
+              },
+            ],
           },
         ],
       },
