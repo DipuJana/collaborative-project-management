@@ -8,9 +8,7 @@ import type {
   User,
 } from './auth.types'
 
-export async function login(
-  credentials: LoginCredentials,
-): Promise<User> {
+export async function login(credentials: LoginCredentials): Promise<User> {
   const response = await apiRequest<LoginResponse>('/auth/login', {
     method: 'POST',
     body: credentials,
@@ -21,15 +19,15 @@ export async function login(
   return response.user
 }
 
-export async function register(
-  credentials: RegisterCredentials,
-): Promise<User> {
+export async function register(credentials: RegisterCredentials): Promise<User> {
   const response = await apiRequest<RegisterResponse>('/auth/register', {
     method: 'POST',
     body: credentials,
   })
 
-  return response.user
+  // Extract only the User fields — discard createdAt
+  const { id, name, email } = response.user
+  return { id, name, email }
 }
 
 export async function getCurrentUser(): Promise<string> {

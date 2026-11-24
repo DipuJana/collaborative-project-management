@@ -21,9 +21,11 @@ export type LoginResponse = {
   user: User
 }
 
+// Backend returns { message, user: { id, name, email, createdAt } }
+// We only need the User subset.
 export type RegisterResponse = {
   message: string
-  user: User
+  user: User & { createdAt?: string }
 }
 
 export type CurrentUserResponse = {
