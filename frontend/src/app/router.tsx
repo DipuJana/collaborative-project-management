@@ -1,5 +1,7 @@
 import { createBrowserRouter } from 'react-router-dom'
 import LandingPage from '../pages/LandingPage'
+import LoginPage from '../pages/LoginPage'
+import RegisterPage from '../pages/RegisterPage'
 import PlaceholderPage from '../pages/PlaceholderPage'
 import { ProtectedRoute } from './ProtectedRoute'
 import { PublicOnlyRoute } from './PublicOnlyRoute'
@@ -17,11 +19,11 @@ export const router = createBrowserRouter([
     children: [
       {
         path: '/login',
-        element: <PlaceholderPage title="Login" />,
+        element: <LoginPage />,
       },
       {
         path: '/register',
-        element: <PlaceholderPage title="Create your account" />,
+        element: <RegisterPage />,
       },
     ],
   },
